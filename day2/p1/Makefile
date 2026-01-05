@@ -22,7 +22,8 @@ run: build
 
 clean:
 	rm -rf bin/
-	rm -f *_*.c
+	rm -f *_*.o
+	rm -f *_*.go
 	go clean
 
 example:
