@@ -4,9 +4,13 @@
 #define __TARGET_ARCH_x86
 
 #include <linux/bpf.h>
-#include "bpf/bpf_helpers.h"
-#include <linux/ptrace.h>
+#include <bpf/bpf_helpers.h>
 #include <linux/pkt_cls.h>
+#include <linux/if_ether.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/tcp.h>
+#include <bpf/bpf_endian.h>
 
 char __license[] SEC("license") = "GPL";
 
@@ -24,6 +28,45 @@ struct {
 
 SEC("tc")
 int handle_egress(struct __sk_buff *skb) {
-  return TC_ACT_OK;
-}
 
+  // Get start and end pointers
+  void *data = (void *)(long) skb->data;
+  void *data_end = (void *)(long) skb->data_end;
+  
+  // Get L3 protocol id from ethernet header
+  struct ethhdr *eth = data;
+  if ((void *)(eth + 1) > data_end)
+    return TC_ACT_OK;
+  __be16 l3_protocol_id = eth->h_proto;
+
+  // If not IPv4, give up
+  if (l3_protocol_id != bpf_htons(ETH_P_IP))
+    return TC_ACT_OK;
+
+  // Get L4 protocol id from ip header
+  struct  iphdr *ip = data + sizeof(struct ethhdr);
+  if ((void *)(ip+1) > data_end)
+    return TC_ACT_OK;
+  __u8 l4_protocol_id = ip->protocol;
+
+  // If not TCP, give up
+  if (l4_protocol_id != IPPROTO_TCP)
+    return TC_ACT_OK;
+
+  // Get port number from TCP header
+  struct tcphdr *tcp = (void *)ip + sizeof(struct iphdr);
+  if ((void *)(tcp + 1) > data_end)
+    return TC_ACT_OK;
+  __be16 dest_port = tcp->dest;
+
+  // If not to port 9999, give up
+  if (bpf_ntohs(dest_port) != 9999)
+    return TC_ACT_OK;  
+
+  bpf_printk("This packet contains eligible input");
+  
+  // next: get sequence number and pass to function
+  // accumulate result in map
+
+  return TC_ACT_SHOT;
+}
