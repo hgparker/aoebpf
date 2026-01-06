@@ -24,6 +24,10 @@ struct {
   __type(value, __u32);
 } state SEC(".maps");
 
+// Helper arithmetic functions
+//int get_base10_len(
+
+
 // The main eBPF function
 
 SEC("tc")
@@ -63,8 +67,12 @@ int handle_egress(struct __sk_buff *skb) {
   if (bpf_ntohs(dest_port) != 9999)
     return TC_ACT_OK;  
 
-  bpf_printk("This packet contains eligible input");
-  
+  // Get sequence number and little-endianize it
+  __u32 sequence_number = bpf_ntohs(tcp->seq);
+ 
+  bpf_printk("Eligible input had sequence number: %d\n", sequence_number);
+ 
+
   // next: get sequence number and pass to function
   // accumulate result in map
 
