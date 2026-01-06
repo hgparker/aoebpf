@@ -19,14 +19,34 @@ char __license[] SEC("license") = "GPL";
 
 struct {
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
-  __uint(max_entries, 2);
+  __uint(max_entries, 1);
   __type(key, __u32);
   __type(value, __u32);
 } state SEC(".maps");
 
 // Helper arithmetic functions
-//int get_base10_len(
+int get_base10_len(__u32 number) {
+  int power10 = 1;
+  for (int k=0; k < 20; k++) {
+    if (number < power10)
+      power10 *= 10;
+    else
+      return k;
+  }
+  return 20;
+}
 
+int bad(__u32 number) {
+  int number_len = get_base10_len(number);
+  if (number_len % 2 != 0)
+    return 0;
+  int useful_power10 = 1;
+  for (int k = 0; k <= number_len/2; k++)
+    useful_power10 *= 10;
+  if (number / useful_power10 == number % useful_power10)
+    return 1;
+  return 0;
+}
 
 // The main eBPF function
 
@@ -70,11 +90,14 @@ int handle_egress(struct __sk_buff *skb) {
   // Get sequence number and little-endianize it
   __u32 sequence_number = bpf_ntohs(tcp->seq);
  
-  bpf_printk("Eligible input had sequence number: %d\n", sequence_number);
- 
+  bpf_printk("Eligible input on CPU %d had sequence number: %d\n", bpf_get_smp_processor_id(), sequence_number);
 
-  // next: get sequence number and pass to function
-  // accumulate result in map
+  // If sequence number meets criterion, add to per-cpu map
+  if (bad(sequence_number) == 1) {
+    __u32 key = 0;
+    __u32 *sum = bpf_map_lookup_elem(&state, &key);
+    *sum += sequence_number;
+  }
 
   return TC_ACT_SHOT;
 }
