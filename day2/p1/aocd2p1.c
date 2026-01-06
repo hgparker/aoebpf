@@ -99,5 +99,6 @@ int handle_egress(struct __sk_buff *skb) {
     *sum += sequence_number;
   }
 
+  // Drop this packet, though
   return TC_ACT_SHOT;
 }
