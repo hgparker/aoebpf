@@ -15,7 +15,7 @@ generate:
 	go generate
 
 build: tidy generate
-	go build -o bin/$(BINARY_NAME)
+	CGO_ENABLED=0 go build -o bin/$(BINARY_NAME)
 
 run: build
 	sudo ./bin/$(BINARY_NAME)
