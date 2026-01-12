@@ -27,11 +27,7 @@ clean:
 	go clean
 
 example:
-	while IFS= read -r line; do \
-		echo "$$line"; \
-	done < example.txt
+	sudo uv run --project feed/ feed/feed.py < example.txt
 
-input:
-	while IFS= read -r line; do \
-		echo "$$line"; \
-	done < input.txt
+# input:
+	# python3 feed.py < input.txt

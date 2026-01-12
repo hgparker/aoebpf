@@ -87,12 +87,13 @@ int handle_egress(struct __sk_buff *skb) {
     return TC_ACT_OK;  
 
   // Get sequence number and little-endianize it
-  __u32 sequence_number = bpf_ntohs(tcp->seq);
+  __u32 sequence_number = bpf_ntohl(tcp->seq);
  
-  bpf_printk("Eligible input on CPU %d had sequence number: %d\n", bpf_get_smp_processor_id(), sequence_number);
+  /* bpf_printk("Eligible input on CPU %d had sequence number: %d\n", bpf_get_smp_processor_id(), sequence_number); */
 
   // If sequence number meets criterion, add to per-cpu map
   if (bad(sequence_number) == 1) {
+    bpf_printk("  ok, %d was bad", sequence_number);
     __u32 key = 0;
     __u32 *sum = bpf_map_lookup_elem(&state, &key);
     *sum += sequence_number;
