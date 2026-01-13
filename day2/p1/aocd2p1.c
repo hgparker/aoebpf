@@ -24,15 +24,17 @@ struct {
 } state SEC(".maps");
 
 // Helper arithmetic functions
-int get_base10_len(__u32 number) {
-  int power10 = 1;
-  for (int k=0; k < 20; k++) {
-    if (number < power10)
-      power10 *= 10;
-    else
-      return k;
-  }
-  return 20;
+int get_base10_len(__u32 v) {
+  if (v >= 1000000000) return 10;
+  if (v >= 100000000)  return 9;
+  if (v >= 10000000)   return 8;
+  if (v >= 1000000)    return 7;
+  if (v >= 100000)     return 6;
+  if (v >= 10000)      return 5;
+  if (v >= 1000)       return 4;
+  if (v >= 100)        return 3;
+  if (v >= 10)         return 2;
+  return 1;
 }
 
 int bad(__u32 number) {
@@ -40,7 +42,7 @@ int bad(__u32 number) {
   if (number_len % 2 != 0)
     return 0;
   int useful_power10 = 1;
-  for (int k = 0; k <= number_len/2; k++)
+  for (int k = 0; k < number_len/2; k++)
     useful_power10 *= 10;
   if (number / useful_power10 == number % useful_power10)
     return 1;
@@ -88,8 +90,6 @@ int handle_egress(struct __sk_buff *skb) {
 
   // Get sequence number and little-endianize it
   __u32 sequence_number = bpf_ntohl(tcp->seq);
- 
-  /* bpf_printk("Eligible input on CPU %d had sequence number: %d\n", bpf_get_smp_processor_id(), sequence_number); */
 
   // If sequence number meets criterion, add to per-cpu map
   if (bad(sequence_number) == 1) {

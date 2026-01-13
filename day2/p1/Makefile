@@ -29,5 +29,5 @@ clean:
 example:
 	sudo uv run --project feed/ feed/feed.py < example.txt
 
-# input:
-	# python3 feed.py < input.txt
+input:
+	sudo uv run --project feed/ feed/feed.py < input.txt
