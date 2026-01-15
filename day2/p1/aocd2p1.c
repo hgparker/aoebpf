@@ -20,11 +20,20 @@ struct {
   __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
   __uint(max_entries, 1);
   __type(key, __u32);
-  __type(value, __u32);
+  __type(value, __u64);
 } state SEC(".maps");
 
 // Helper arithmetic functions
-int get_base10_len(__u32 v) {
+int get_base10_len(__u64 v) {
+  if (v >= 1000000000000000000) return 19;
+  if (v >= 100000000000000000) return 18;
+  if (v >= 10000000000000000) return 17;
+  if (v >= 1000000000000000) return 16;
+  if (v >= 100000000000000) return 15;
+  if (v >= 10000000000000) return 14;
+  if (v >= 1000000000000) return 13;
+  if (v >= 100000000000) return 12;
+  if (v >= 10000000000) return 11;
   if (v >= 1000000000) return 10;
   if (v >= 100000000)  return 9;
   if (v >= 10000000)   return 8;
@@ -37,7 +46,7 @@ int get_base10_len(__u32 v) {
   return 1;
 }
 
-int bad(__u32 number) {
+int bad(__u64 number) {
   int number_len = get_base10_len(number);
   if (number_len % 2 != 0)
     return 0;
@@ -68,11 +77,12 @@ int handle_egress(struct __sk_buff *skb) {
   if (l3_protocol_id != bpf_htons(ETH_P_IP))
     return TC_ACT_OK;
 
-  // Get L4 protocol id from ip header
+  // Get L4 protocol id from ip header and save destination address for later
   struct  iphdr *ip = data + sizeof(struct ethhdr);
   if ((void *)(ip+1) > data_end)
     return TC_ACT_OK;
   __u8 l4_protocol_id = ip->protocol;
+  __u64 residue = bpf_ntohl(ip->daddr);
 
   // If not TCP, give up
   if (l4_protocol_id != IPPROTO_TCP)
@@ -89,14 +99,18 @@ int handle_egress(struct __sk_buff *skb) {
     return TC_ACT_OK;  
 
   // Get sequence number and little-endianize it
-  __u32 sequence_number = bpf_ntohl(tcp->seq);
+  __u64 sequence_number = bpf_ntohl(tcp->seq);
+
+  // Form input number
+  __u64 input_number = sequence_number * 4294967296 + residue;
+  /* bpf_printk("Received input_number = %d\n", input_number); */
 
   // If sequence number meets criterion, add to per-cpu map
-  if (bad(sequence_number) == 1) {
-    bpf_printk("  ok, %d was bad", sequence_number);
+  if (bad(input_number) == 1) {
+    /* bpf_printk("  ok, %d was bad", sequence_number); */
     __u32 key = 0;
-    __u32 *sum = bpf_map_lookup_elem(&state, &key);
-    *sum += sequence_number;
+    __u64 *sum = bpf_map_lookup_elem(&state, &key);
+    *sum += input_number;
   }
 
   // Drop this packet, though

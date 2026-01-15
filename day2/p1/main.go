@@ -67,8 +67,8 @@ func main() {
 		log.Fatalf("failed to get cpu count: %v", err)
 	}
 	var countIndex uint32 = 0
-	var initialCount uint32 = 0
-	countValues := make([]uint32, numCPU)
+	var initialCount uint64 = 0
+	countValues := make([]uint64, numCPU)
 	for i := range countValues {
 		countValues[i] = initialCount
 	}
@@ -89,15 +89,15 @@ func main() {
 			log.Println("Exiting")
 			return
 		case <-ticker.C:
-			currResults := make([]uint32, numCPU)
+			currResults := make([]uint64, numCPU)
 			if err := objs.State.Lookup(&countIndex, &currResults); err != nil {
 				log.Fatalf("could not perform lookup on map: %v", err)
 			}
-			var totalCount uint32 = 0
+			var totalCount uint64 = 0
 			for _, result := range currResults {
 				totalCount += result
 			}
-			log.Printf("Total count so far: %d", totalCount)
+			log.Printf("Total so far: %d", totalCount)
 		}
 	}
 }
