@@ -1,0 +1,149 @@
+// go:build ignore
+
+#define __TARGET_ARCH_x86
+
+#include <linux/bpf.h>
+#include <bpf/bpf_helpers.h>
+#include <linux/pkt_cls.h>
+#include <linux/if_ether.h>
+#include <linux/ip.h>
+#include <linux/in.h>
+#include <linux/tcp.h>
+#include <bpf/bpf_endian.h>
+
+char __license[] SEC("license") = "GPL";
+
+// eBPF map we use to record results
+// Per CPU allows us to sidestep concurrency worries
+
+struct {
+  __uint(type, BPF_MAP_TYPE_PERCPU_ARRAY);
+  __uint(max_entries, 1);
+  __type(key, __u32);
+  __type(value, __u64);
+} state SEC(".maps");
+
+// Helper arithmetic functions
+int get_base10_len(__u64 v) {
+  if (v >= 1000000000000000000) return 19;
+  if (v >= 100000000000000000) return 18;
+  if (v >= 10000000000000000) return 17;
+  if (v >= 1000000000000000) return 16;
+  if (v >= 100000000000000) return 15;
+  if (v >= 10000000000000) return 14;
+  if (v >= 1000000000000) return 13;
+  if (v >= 100000000000) return 12;
+  if (v >= 10000000000) return 11;
+  if (v >= 1000000000) return 10;
+  if (v >= 100000000)  return 9;
+  if (v >= 10000000)   return 8;
+  if (v >= 1000000)    return 7;
+  if (v >= 100000)     return 6;
+  if (v >= 10000)      return 5;
+  if (v >= 1000)       return 4;
+  if (v >= 100)        return 3;
+  if (v >= 10)         return 2;
+  return 1;
+}
+
+static const __u64 powers10[19] = {
+  1,
+  10,
+  100,
+  1000,
+  10000,
+  100000,
+  1000000,
+  10000000,
+  100000000,
+  1000000000,
+  10000000000,
+  100000000000,
+  1000000000000,
+  10000000000000,
+  100000000000000,
+  1000000000000000,
+  10000000000000000,
+  100000000000000000,
+  1000000000000000000,
+};
+
+int bad(__u64 number) {
+  int number_len = get_base10_len(number);
+  for (int t=1; t <= 19; t += 1) {
+    if (t >= number_len)
+      break;
+    int safe_t = t % 19;
+    if (number_len % t == 0) {
+      __u64 candidate_repetend = number % powers10[safe_t];
+      __u64 num_from_repetend = 0;
+      for (int m=0; m < 10; m += 1) {
+        if (m >= number_len / t)
+          break;
+        num_from_repetend = powers10[safe_t] * num_from_repetend + candidate_repetend;
+      }
+      if (num_from_repetend == number)
+        return 1;
+    }
+  }
+  return 0;
+}
+
+// The main eBPF function
+
+SEC("tc")
+int handle_egress(struct __sk_buff *skb) {
+
+  // Get start and end pointers
+  void *data = (void *)(long) skb->data;
+  void *data_end = (void *)(long) skb->data_end;
+  
+  // Get L3 protocol id from ethernet header
+  struct ethhdr *eth = data;
+  if ((void *)(eth + 1) > data_end)
+    return TC_ACT_OK;
+  __be16 l3_protocol_id = eth->h_proto;
+
+  // If not IPv4, give up
+  if (l3_protocol_id != bpf_htons(ETH_P_IP))
+    return TC_ACT_OK;
+
+  // Get L4 protocol id from ip header and save destination address for later
+  struct  iphdr *ip = data + sizeof(struct ethhdr);
+  if ((void *)(ip+1) > data_end)
+    return TC_ACT_OK;
+  __u8 l4_protocol_id = ip->protocol;
+  __u64 residue = bpf_ntohl(ip->daddr);
+
+  // If not TCP, give up
+  if (l4_protocol_id != IPPROTO_TCP)
+    return TC_ACT_OK;
+
+  // Get port number from TCP header
+  struct tcphdr *tcp = (void *)ip + sizeof(struct iphdr);
+  if ((void *)(tcp + 1) > data_end)
+    return TC_ACT_OK;
+  __be16 dest_port = tcp->dest;
+
+  // If not to port 9999, give up
+  if (bpf_ntohs(dest_port) != 9999)
+    return TC_ACT_OK;  
+
+  // Get sequence number and little-endianize it
+  __u64 sequence_number = bpf_ntohl(tcp->seq);
+
+  // Form input number
+  __u64 input_number = sequence_number * 4294967296 + residue;
+  /* bpf_printk("Received input_number = %d\n", input_number); */
+
+  // If sequence number meets criterion, add to per-cpu map
+  if (bad(input_number) == 1) {
+    /* bpf_printk("  ok, %d was bad", sequence_number); */
+    __u32 key = 0;
+    __u64 *sum = bpf_map_lookup_elem(&state, &key);
+    *sum += input_number;
+  }
+
+  // Drop this packet, though
+  return TC_ACT_SHOT;
+}
