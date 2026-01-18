@@ -70,17 +70,16 @@ static const __u64 powers10[19] = {
 
 int bad(__u64 number) {
   int number_len = get_base10_len(number);
-  for (int t=1; t <= 19; t += 1) {
+  for (int t=1; t < 19; t += 1) {
     if (t >= number_len)
       break;
-    int safe_t = t % 19;
     if (number_len % t == 0) {
-      __u64 candidate_repetend = number % powers10[safe_t];
+      __u64 candidate_repetend = number % powers10[t];
       __u64 num_from_repetend = 0;
       for (int m=0; m < 10; m += 1) {
         if (m >= number_len / t)
           break;
-        num_from_repetend = powers10[safe_t] * num_from_repetend + candidate_repetend;
+        num_from_repetend = powers10[t] * num_from_repetend + candidate_repetend;
       }
       if (num_from_repetend == number)
         return 1;
