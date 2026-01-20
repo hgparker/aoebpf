@@ -2,3 +2,4 @@ notes.txt
 *.o
 bin/
 *.swp
+vmlinux.h

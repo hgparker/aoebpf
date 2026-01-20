@@ -1,25 +1,34 @@
-DAY=3
-
-SHELL:/bin/bash
-BINARY_NAME=aocd$(DAY)
-EBPF_NAME=aocd$(DAY)
-
-.PHONY build run clean tidy generate example input
-
+DAY := 3
+SHELL := /bin/bash
+BINARY_NAME := aocd$(DAY)
+EBPF_NAME := aocd$(DAY)
 PROBLEM ?= p1
+
+.PHONY: build run clean tidy generate example input
+
+ifeq ($(PROBLEM),p1)
+	export SEQUENCE_LEN := 2
+else
+	export SEQUENCE_LEN := 12
+endif
 
 tidy:
 	go mod tidy
 
 generate:
-	ifeq ($(PROBLEM),p1)
-		SEQUENCE_LEN=2 go generate
-	else
-		SEQUENCE_LEN=12 go generate
-	endif
+	go generate
 
 clean:
-		rm -rf bin/
-		rm -f *_*.o
-		rm -f *_*.go
-		go clean
+	rm -rf bin/
+	rm -f *_*.o
+	rm -f *_*.go
+	go clean
+
+vmlinux.h:
+	bpftool btf dump file /sys/kernel/btf/vmlinux format c > vmlinux.h
+
+build: tidy generate
+	CGO_ENABLED=0 go build -o bin/$(BINARY_NAME)
+
+run: build
+	sudo ./bin/$(BINARY_NAME)
