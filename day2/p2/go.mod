@@ -1,4 +1,4 @@
-module aoebpf1
+module aoebpf2
 
 go 1.25.5
 
