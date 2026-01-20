@@ -26,7 +26,7 @@ struct InputWorkspace {
 
 struct Workspace {
   __u32 first_workable_input;
-  __u32 last_workable_input;
+  __u32 first_nonworkable_input;
   struct InputWorkspace input_workspaces[MAX_NUM_INPUTS];
 };
 

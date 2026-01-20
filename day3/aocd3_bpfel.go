@@ -14,10 +14,10 @@ import (
 )
 
 type aocd3Workspace struct {
-	_                  structs.HostLayout
-	FirstWorkableInput uint32
-	LastWorkableInput  uint32
-	InputWorkspaces    [500]struct {
+	_                     structs.HostLayout
+	FirstWorkableInput    uint32
+	FirstNonworkableInput uint32
+	InputWorkspaces       [500]struct {
 		_          structs.HostLayout
 		Locked     uint8
 		Input      [500]int8
