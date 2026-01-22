@@ -1,4 +1,4 @@
-// go: build ignore
+//go: build ignore
 
 #define __TARGET_ARG_x86
 
@@ -41,6 +41,7 @@ struct {
 
 SEC("tracepoint/syscalls/sys_enter_epoll_wait")
 int epoll_work(struct trace_event_raw_sys_enter *ctx) {
-  bpf_printk("Hello from epoll\n");
+  __u32 sl = SEQUENCE_LEN;
+  bpf_printk("Hello from epoll with SEQUENCE_LEN value", sl);
   return 0;
 }

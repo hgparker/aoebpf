@@ -7,16 +7,16 @@ PROBLEM ?= p1
 .PHONY: build run clean tidy generate example input
 
 ifeq ($(PROBLEM),p1)
-	export SEQUENCE_LEN := 2
+SEQUENCE_LEN := 2
 else
-	export SEQUENCE_LEN := 12
+SEQUENCE_LEN := 12
 endif
 
 tidy:
 	go mod tidy
 
 generate:
-	go generate
+	SEQUENCE_LEN=$(SEQUENCE_LEN) go generate
 
 clean:
 	rm -rf bin/

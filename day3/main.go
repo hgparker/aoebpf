@@ -10,6 +10,11 @@ import (
 )
 
 func main() {
+	// Initialize map with empty values
+	var workspace aocd3Workspace
+	sequenceLen := len(workspace.InputWorkspaces[0].BestSuffix)
+	log.Printf("Value we have for SequenceLen is %d\n", sequenceLen)
+
 	// Load ebpf program
 	var objs aocd3Objects
 	if err := loadAocd3Objects(&objs, nil); err != nil {

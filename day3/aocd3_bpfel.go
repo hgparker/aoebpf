@@ -23,7 +23,7 @@ type aocd3Workspace struct {
 		Input      [500]int8
 		_          [3]byte
 		NextK      uint32
-		BestSuffix [0]uint32
+		BestSuffix [12]uint32
 	}
 }
 
