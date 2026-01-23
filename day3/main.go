@@ -1,7 +1,9 @@
 package main
 
 import (
+	"bufio"
 	"log"
+	"net"
 	"os"
 	"os/signal"
 	"syscall"
@@ -37,8 +39,35 @@ func main() {
 	}
 	defer tp.Close()
 
-	// Wait around
+	// Set up server to receive input
+	listener, err := net.Listen("tcp", ":9999")
+	if err != nil {
+		log.Fatalf("Error binding to port 9999: %v", err)
+	}
+	go func() {
+		log.Println("Server live, listening on :9999")
+		for {
+			conn, err := listener.Accept()
+			if err != nil {
+				log.Println("Listener closed or error occurred")
+				return
+			}
+			go handleConnection(conn)
+		}
+	}()
+
+	// Prepare for graceful exit
 	stopper := make(chan os.Signal, 1)
 	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
 	<-stopper
+	listener.Close()
+}
+
+func handleConnection(conn net.Conn) {
+	defer conn.Close()
+	scanner := bufio.NewScanner(conn)
+	for scanner.Scan() {
+		input := scanner.Text()
+		log.Printf("Server received input: %s", input)
+	}
 }
