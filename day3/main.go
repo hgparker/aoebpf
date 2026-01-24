@@ -22,15 +22,21 @@ func main() {
 	log.Println("Successfully loaded eBPF program")
 
 	// Initialize map with empty values
-	var workspace aocd3Workspace
-	sequenceLen := len(workspace.InputWorkspaces[0].BestSuffix)
+	var sampleInputWorkspace aocd3InputWorkspace
+	sequenceLen := len(sampleInputWorkspace.BestSuffix) - 1
 	log.Printf("Value we have for SequenceLen is %d\n", sequenceLen)
-	workspace.FirstWorkableInput = 0
-	workspace.FirstNonworkableInput = 0
-	var countIndex uint32 = 0
-	if err := objs.Workspace.Update(&countIndex, workspace, ebpf.UpdateAny); err != nil {
-		log.Fatalf("failed to initialize ebpf map: %v", err)
+
+	var initialWorkState aocd3WorkState
+	initialWorkState.FirstUnworkedInput = 0
+	initialWorkState.WorkableInputBoundary = 0
+	var workStateIndex uint32 = 0
+	if err := objs.WorkState.Update(&workStateIndex, &initialWorkState, ebpf.UpdateAny); err != nil {
+		log.Fatalf("Failed to initialize WorkState: %v", err)
 	}
+
+	// if err := objs.Workspace.Update(&countIndex, workspace, ebpf.UpdateAny); err != nil {
+	// log.Fatalf("failed to initialize ebpf map: %v", err)
+	// }
 
 	// Attach ebpf program
 	tp, err := link.Tracepoint("syscalls", "sys_enter_epoll_wait", objs.EpollWork, nil)
@@ -52,7 +58,7 @@ func main() {
 				log.Println("Listener closed or error occurred")
 				return
 			}
-			go handleConnection(conn)
+			go handleConnection(conn, objs)
 		}
 	}()
 
@@ -63,7 +69,7 @@ func main() {
 	listener.Close()
 }
 
-func handleConnection(conn net.Conn) {
+func handleConnection(conn net.Conn, _ aocd3Objects) {
 	defer conn.Close()
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {

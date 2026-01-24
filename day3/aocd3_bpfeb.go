@@ -13,18 +13,19 @@ import (
 	"github.com/cilium/ebpf"
 )
 
-type aocd3Workspace struct {
+type aocd3InputWorkspace struct {
+	_          structs.HostLayout
+	Locked     uint8
+	Input      [500]int8
+	_          [3]byte
+	NextK      uint32
+	BestSuffix [3]uint32
+}
+
+type aocd3WorkState struct {
 	_                     structs.HostLayout
-	FirstWorkableInput    uint32
-	FirstNonworkableInput uint32
-	InputWorkspaces       [500]struct {
-		_          structs.HostLayout
-		Locked     uint8
-		Input      [500]int8
-		_          [3]byte
-		NextK      uint32
-		BestSuffix [2]uint32
-	}
+	FirstUnworkedInput    uint32
+	WorkableInputBoundary uint32
 }
 
 // loadAocd3 returns the embedded CollectionSpec for aocd3.
@@ -76,7 +77,8 @@ type aocd3ProgramSpecs struct {
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type aocd3MapSpecs struct {
-	Workspace *ebpf.MapSpec `ebpf:"workspace"`
+	InputWorkspaces *ebpf.MapSpec `ebpf:"input_workspaces"`
+	WorkState       *ebpf.MapSpec `ebpf:"work_state"`
 }
 
 // aocd3VariableSpecs contains global variables before they are loaded into the kernel.
@@ -105,12 +107,14 @@ func (o *aocd3Objects) Close() error {
 //
 // It can be passed to loadAocd3Objects or ebpf.CollectionSpec.LoadAndAssign.
 type aocd3Maps struct {
-	Workspace *ebpf.Map `ebpf:"workspace"`
+	InputWorkspaces *ebpf.Map `ebpf:"input_workspaces"`
+	WorkState       *ebpf.Map `ebpf:"work_state"`
 }
 
 func (m *aocd3Maps) Close() error {
 	return _Aocd3Close(
-		m.Workspace,
+		m.InputWorkspaces,
+		m.WorkState,
 	)
 }
 
