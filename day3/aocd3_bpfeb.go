@@ -22,12 +22,6 @@ type aocd3InputWorkspace struct {
 	BestSuffix [3]uint32
 }
 
-type aocd3WorkState struct {
-	_                     structs.HostLayout
-	FirstUnworkedInput    uint32
-	WorkableInputBoundary uint32
-}
-
 // loadAocd3 returns the embedded CollectionSpec for aocd3.
 func loadAocd3() (*ebpf.CollectionSpec, error) {
 	reader := bytes.NewReader(_Aocd3Bytes)
@@ -78,13 +72,14 @@ type aocd3ProgramSpecs struct {
 // It can be passed ebpf.CollectionSpec.Assign.
 type aocd3MapSpecs struct {
 	InputWorkspaces *ebpf.MapSpec `ebpf:"input_workspaces"`
-	WorkState       *ebpf.MapSpec `ebpf:"work_state"`
 }
 
 // aocd3VariableSpecs contains global variables before they are loaded into the kernel.
 //
 // It can be passed ebpf.CollectionSpec.Assign.
 type aocd3VariableSpecs struct {
+	FirstUnworkableInputIndex *ebpf.VariableSpec `ebpf:"first_unworkable_input_index"`
+	FirstWorkableInputIndex   *ebpf.VariableSpec `ebpf:"first_workable_input_index"`
 }
 
 // aocd3Objects contains all objects after they have been loaded into the kernel.
@@ -108,13 +103,11 @@ func (o *aocd3Objects) Close() error {
 // It can be passed to loadAocd3Objects or ebpf.CollectionSpec.LoadAndAssign.
 type aocd3Maps struct {
 	InputWorkspaces *ebpf.Map `ebpf:"input_workspaces"`
-	WorkState       *ebpf.Map `ebpf:"work_state"`
 }
 
 func (m *aocd3Maps) Close() error {
 	return _Aocd3Close(
 		m.InputWorkspaces,
-		m.WorkState,
 	)
 }
 
@@ -122,6 +115,8 @@ func (m *aocd3Maps) Close() error {
 //
 // It can be passed to loadAocd3Objects or ebpf.CollectionSpec.LoadAndAssign.
 type aocd3Variables struct {
+	FirstUnworkableInputIndex *ebpf.Variable `ebpf:"first_unworkable_input_index"`
+	FirstWorkableInputIndex   *ebpf.Variable `ebpf:"first_workable_input_index"`
 }
 
 // aocd3Programs contains all programs after they have been loaded into the kernel.

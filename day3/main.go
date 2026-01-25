@@ -8,7 +8,6 @@ import (
 	"os/signal"
 	"syscall"
 
-	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 )
 
@@ -26,14 +25,9 @@ func main() {
 	sequenceLen := len(sampleInputWorkspace.BestSuffix) - 1
 	log.Printf("Value we have for SequenceLen is %d\n", sequenceLen)
 
-	// Initialize Workstate map
-	var initialWorkState aocd3WorkState
-	initialWorkState.FirstUnworkedInput = 0
-	initialWorkState.WorkableInputBoundary = 0
-	var workStateIndex uint32 = 0
-	if err := objs.WorkState.Update(&workStateIndex, &initialWorkState, ebpf.UpdateAny); err != nil {
-		log.Fatalf("Failed to initialize WorkState: %v", err)
-	}
+	// Initialize necessary variables
+	objs.FirstWorkableInputIndex.Set(0)
+	objs.FirstUnworkableInputIndex.Set(0)
 
 	// Attach ebpf program
 	tp, err := link.Tracepoint("syscalls", "sys_enter_epoll_wait", objs.EpollWork, nil)
@@ -47,7 +41,9 @@ func main() {
 	go func() {
 		for input := range inputChan {
 			log.Printf("Input handler received input: %s", input)
-			// get boundary
+			var currFirstUnworkableInputIndex uint32
+			objs.FirstUnworkableInputIndex.Get(&currFirstUnworkableInputIndex)
+
 			// prepare inputWorkspace
 			// write inputWorkspace
 			// adjust boundary
