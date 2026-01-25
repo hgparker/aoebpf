@@ -21,11 +21,12 @@ func main() {
 	defer objs.Close()
 	log.Println("Successfully loaded eBPF program")
 
-	// Initialize map with empty values
+	// Determine sequence len variable
 	var sampleInputWorkspace aocd3InputWorkspace
 	sequenceLen := len(sampleInputWorkspace.BestSuffix) - 1
 	log.Printf("Value we have for SequenceLen is %d\n", sequenceLen)
 
+	// Initialize Workstate map
 	var initialWorkState aocd3WorkState
 	initialWorkState.FirstUnworkedInput = 0
 	initialWorkState.WorkableInputBoundary = 0
@@ -34,10 +35,6 @@ func main() {
 		log.Fatalf("Failed to initialize WorkState: %v", err)
 	}
 
-	// if err := objs.Workspace.Update(&countIndex, workspace, ebpf.UpdateAny); err != nil {
-	// log.Fatalf("failed to initialize ebpf map: %v", err)
-	// }
-
 	// Attach ebpf program
 	tp, err := link.Tracepoint("syscalls", "sys_enter_epoll_wait", objs.EpollWork, nil)
 	if err != nil {
@@ -45,7 +42,19 @@ func main() {
 	}
 	defer tp.Close()
 
-	// Set up server to receive input
+	// Set up input handler to pass inputs to the map
+	inputChan := make(chan string, 1000)
+	go func() {
+		for input := range inputChan {
+			log.Printf("Input handler received input: %s", input)
+			// get boundary
+			// prepare inputWorkspace
+			// write inputWorkspace
+			// adjust boundary
+		}
+	}()
+
+	// Set up server to receive input and pass to channel
 	listener, err := net.Listen("tcp", ":9999")
 	if err != nil {
 		log.Fatalf("Error binding to port 9999: %v", err)
@@ -58,7 +67,15 @@ func main() {
 				log.Println("Listener closed or error occurred")
 				return
 			}
-			go handleConnection(conn, objs)
+			go func(conn net.Conn) {
+				defer conn.Close()
+				scanner := bufio.NewScanner(conn)
+				for scanner.Scan() {
+					input := scanner.Text()
+					log.Printf("Server received input: %s", input)
+					inputChan <- input
+				}
+			}(conn)
 		}
 	}()
 
@@ -67,13 +84,4 @@ func main() {
 	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
 	<-stopper
 	listener.Close()
-}
-
-func handleConnection(conn net.Conn, _ aocd3Objects) {
-	defer conn.Close()
-	scanner := bufio.NewScanner(conn)
-	for scanner.Scan() {
-		input := scanner.Text()
-		log.Printf("Server received input: %s", input)
-	}
 }
