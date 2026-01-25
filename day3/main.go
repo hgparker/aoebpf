@@ -8,6 +8,7 @@ import (
 	"os/signal"
 	"syscall"
 
+	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
 )
 
@@ -26,8 +27,8 @@ func main() {
 	log.Printf("Value we have for SequenceLen is %d\n", sequenceLen)
 
 	// Initialize necessary variables
-	objs.FirstWorkableInputIndex.Set(0)
-	objs.FirstUnworkableInputIndex.Set(0)
+	objs.FirstWorkableInputIndex.Set(0)   // Safe b/c ebpf isn't running yet
+	objs.FirstUnworkableInputIndex.Set(0) // Only set from userspace
 
 	// Attach ebpf program
 	tp, err := link.Tracepoint("syscalls", "sys_enter_epoll_wait", objs.EpollWork, nil)
@@ -43,10 +44,12 @@ func main() {
 			log.Printf("Input handler received input: %s", input)
 			var currFirstUnworkableInputIndex uint32
 			objs.FirstUnworkableInputIndex.Get(&currFirstUnworkableInputIndex)
-
-			// prepare inputWorkspace
-			// write inputWorkspace
-			// adjust boundary
+			newInputWorkSpace := aocd3InputWorkspace{}
+			for i := 0; i < len(input) && i < len(newInputWorkSpace.Input); i++ {
+				newInputWorkSpace.Input[i] = int8(input[i])
+			}
+			objs.InputWorkspaces.Update(&currFirstUnworkableInputIndex, &newInputWorkSpace, ebpf.UpdateAny)
+			objs.FirstUnworkableInputIndex.Set(currFirstUnworkableInputIndex + 1) // Safe b/c only set from userspace
 		}
 	}()
 
