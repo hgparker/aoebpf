@@ -48,8 +48,11 @@ func main() {
 			for i := 0; i < len(input) && i < len(newInputWorkSpace.Input); i++ {
 				newInputWorkSpace.Input[i] = int8(input[i])
 			}
-			objs.InputWorkspaces.Update(&currFirstUnworkableInputIndex, &newInputWorkSpace, ebpf.UpdateAny)
-			objs.FirstUnworkableInputIndex.Set(currFirstUnworkableInputIndex + 1) // Safe b/c only set from userspace
+			for i := 1; i < sequenceLen+1; i++ {
+				newInputWorkSpace.BestSuffix[i] = -1
+			}
+			objs.InputWorkspaces.Update(&currFirstUnworkableInputIndex, &newInputWorkSpace, ebpf.UpdateAny) // Safe because hitherto unworkable
+			objs.FirstUnworkableInputIndex.Set(currFirstUnworkableInputIndex + 1)                           // Safe b/c only set from userspace
 		}
 	}()
 

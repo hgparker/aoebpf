@@ -19,7 +19,8 @@ type aocd3InputWorkspace struct {
 	Input      [500]int8
 	_          [3]byte
 	NextK      uint32
-	BestSuffix [3]uint32
+	_          [4]byte
+	BestSuffix [3]int64
 }
 
 // loadAocd3 returns the embedded CollectionSpec for aocd3.

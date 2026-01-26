@@ -21,7 +21,7 @@ struct InputWorkspace {
   __u8 locked; // ebpf programs will use CAS on this
   char input[MAX_INPUT_LEN]; // actual input lives here
   __u32 next_k; // which char in input we should use next to enrich best_suffix[]
-  __u32 best_suffix[SEQUENCE_LEN + 1]; // best_suffix[t] stores best suffix of length t
+  __s64 best_suffix[SEQUENCE_LEN + 1]; // best_suffix[t] stores best suffix of length t
 };
 
 // eBPF maps for accessing input and saving state
