@@ -15,9 +15,8 @@ import (
 
 type aocd3InputWorkspace struct {
 	_          structs.HostLayout
-	Locked     uint8
+	Locked     uint32
 	Input      [500]int8
-	_          [3]byte
 	NextK      uint32
 	_          [4]byte
 	BestSuffix [3]int64
