@@ -44,9 +44,12 @@ func main() {
 			log.Printf("Input handler received input: %s", input)
 			var currFirstUnworkableInputIndex uint32
 			objs.FirstUnworkableInputIndex.Get(&currFirstUnworkableInputIndex)
-			newInputWorkSpace := aocd3InputWorkspace{}
+			newInputWorkSpace := aocd3InputWorkspace{
+				Locked:   0,
+				InputLen: uint32(len(input)),
+			}
 			for i := 0; i < len(input) && i < len(newInputWorkSpace.Input); i++ {
-				newInputWorkSpace.Input[i] = int8(input[i])
+				newInputWorkSpace.Input[i] = uint32(input[i] - '0')
 			}
 			for i := 1; i < sequenceLen+1; i++ {
 				newInputWorkSpace.BestSuffix[i] = -1

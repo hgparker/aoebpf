@@ -20,7 +20,8 @@ char __license[] SEC("license") = "GPL";
 
 struct InputWorkspace {
   __u32 locked; // ebpf programs will use CAS on this
-  char input[MAX_INPUT_LEN]; // actual input lives here
+  __u32 input[MAX_INPUT_LEN]; // actual input lives here
+  __u32 input_len;
   __u32 next_k; // which char in input we should use next to enrich best_suffix[]
   __s64 best_suffix[SEQUENCE_LEN + 1]; // best_suffix[t] stores best suffix of length t
 };
@@ -59,6 +60,8 @@ int epoll_work(struct trace_event_raw_sys_enter *ctx) {
     // Try to get lock
     if (__sync_val_compare_and_swap(&inputWorkspace->locked, 0, 1) != 0)
       continue;
+
+    // "Business logic" -> viz. do one DP pass
 
     // Release the lock in an overkill way to prevent CPU/compiler instruction reordering
     __sync_lock_test_and_set(&inputWorkspace->locked, 0);
