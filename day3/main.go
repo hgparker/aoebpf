@@ -47,6 +47,7 @@ func main() {
 			newInputWorkSpace := aocd3InputWorkspace{
 				Locked:   0,
 				InputLen: uint32(len(input)),
+				NextK:    int32(len(input)) - 1,
 			}
 			for i := 0; i < len(input) && i < len(newInputWorkSpace.Input); i++ {
 				newInputWorkSpace.Input[i] = uint32(input[i] - '0')

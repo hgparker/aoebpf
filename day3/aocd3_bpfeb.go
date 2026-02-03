@@ -18,7 +18,7 @@ type aocd3InputWorkspace struct {
 	Locked     uint32
 	Input      [500]uint32
 	InputLen   uint32
-	NextK      uint32
+	NextK      int32
 	_          [4]byte
 	BestSuffix [3]int64
 }
