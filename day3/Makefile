@@ -32,3 +32,13 @@ build: tidy generate
 
 run: build
 	sudo ./bin/$(BINARY_NAME)
+
+example:
+	while IFS= read -r line; do \
+		echo "$$line" | nc localhost -N 9999; \
+	done < example.txt
+
+input:
+	while IFS= read -r line; do \
+		echo "$$line" | nc localhost -N 9999; \
+	done < input.txt

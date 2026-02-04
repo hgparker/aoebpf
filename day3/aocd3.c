@@ -123,14 +123,16 @@ int epoll_work(struct trace_event_raw_sys_enter *ctx) {
 
   // The DP pass
   #pragma unroll
-  for (__u32 t=SEQUENCE_LEN-1; t>=1; t--) {
+  for (__u32 t=SEQUENCE_LEN; t>=1; t--) {
     if (inputWorkspace->best_suffix[t-1] != -1) {
-      __s64 cand = (powers10[t] * digit) + inputWorkspace->best_suffix[t-1];
+      __s64 cand = (powers10[t-1] * digit) + inputWorkspace->best_suffix[t-1];
       if (cand > inputWorkspace->best_suffix[t]) 
         inputWorkspace->best_suffix[t] = cand;
      }
   }
-  
+ 
+  /* bpf_printk("Current best suffix is %d", inputWorkspace->best_suffix[SEQUENCE_LEN]); */
+
   // Adjust next_k downward
   inputWorkspace->next_k -= 1;
   

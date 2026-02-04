@@ -7,6 +7,7 @@ import (
 	"os"
 	"os/signal"
 	"syscall"
+	"time"
 
 	"github.com/cilium/ebpf"
 	"github.com/cilium/ebpf/link"
@@ -88,6 +89,28 @@ func main() {
 	// Prepare for graceful exit
 	stopper := make(chan os.Signal, 1)
 	signal.Notify(stopper, os.Interrupt, syscall.SIGTERM)
-	<-stopper
-	listener.Close()
+
+	// Poll to see if can print answer
+	ticker := time.NewTicker(10 * time.Second)
+	defer ticker.Stop()
+
+	for {
+		select {
+		case <-stopper:
+			listener.Close()
+			return
+		case <-ticker.C:
+			sum := 0
+			var currFirstUnworkableIndex uint32
+			objs.FirstUnworkableInputIndex.Get(&currFirstUnworkableIndex)
+			for i := uint32(0); i < currFirstUnworkableIndex; i += 1 {
+				var inputWorkspace aocd3InputWorkspace
+				objs.InputWorkspaces.Lookup(&i, &inputWorkspace)
+				if inputWorkspace.NextK == -1 {
+					sum += int(inputWorkspace.BestSuffix[sequenceLen])
+				}
+			}
+			log.Printf("Current ans = %d", sum)
+		}
+	}
 }
