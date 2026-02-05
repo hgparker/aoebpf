@@ -6,7 +6,7 @@ As I had already done these problems in Python, the focus was on replicating the
 
 I quickly discovered that AoC problems are not a great fit for eBPF in general and decided not to go beyond doing AoC Days 1-3.
 
-For helper programs running in userspace, I used the [ebpf-go library](https://github.com/cilium/ebpf). The super useful thing this library does is, given eBPF maps and functions defined in C, generating ways to refer to these structures and functions in Golang using the `bpf2go` tool.
+For helper programs running in userspace, I used the [ebpf-go library](https://github.com/cilium/ebpf). The super useful thing this library does is, given eBPF maps and functions defined in C, to generate ways to refer to these structures and functions in Golang using the `bpf2go` tool.
 
 #### Structure of Repo
 
@@ -18,7 +18,7 @@ I adhere to the following conventions: `make run` starts the eBPF program, `make
 
 #### Day1
 
-For Day1, I decided to keep thing simple. For hook point, I used a uprobe on `echo_builtin` in the bash binary. Thus, when `echo abc` is submitted to bash, the eBPF program is first run on the to-be-echoed input before echo itself does anything with it. To submit the input, we just echo each line. The helper polls a map to get the answer. We don't need to worry about concurrency in updating our map because the input is strictly serialized and blocks until echoed.
+For Day1, I decided to keep things simple. For hook point, I used a uprobe on `echo_builtin` in the bash binary. Thus, when `echo abc` is submitted to bash, the eBPF program is first run on the to-be-echoed input before echo itself does anything with it. To submit the input, we just echo each line. The helper polls a map to get the answer. We don't need to worry about concurrency in updating our map because the input is strictly serialized and blocks until echoed.
 
 Various learnings and thoughts:
 * `nm -D <binary>` is a good way to learn about uprobe hook points
@@ -40,7 +40,7 @@ Various learnings and thoughts:
 
 #### Day3
 
-The solution to AoC Day3 is "simple DP." However, this simple DP isn't simple enough for eBPF. Thus, each execution of the program accomplishes a single "run" of the DP. In other words, if the DP originally consisted of a nested loop, each eBPF execution does one inner loop and adjusts state so that future executions know what to do. The underlying idea is to do a "minimum unit of work" in each execution. As hook point, I used epoll_wait -- this is the syscall used when waiting for input from a file descriptor. I empirically observed it was called a few hundred times a minute on my laptop, which I figured would be enough "raw energy" to do the useful work of deriving the answer from the input.
+The solution to AoC Day3 is "simple DP." However, this simple DP isn't simple enough for eBPF. Thus, each execution of the program accomplishes a single "run" of the DP. In other words, if the DP originally consisted of a nested loop, each eBPF execution does one inner loop and adjusts state so that future executions know what to do. The underlying idea is to do a "minimum unit of work" in each execution. As hook point, I used epoll_wait -- this is the syscall used when waiting for input from a file descriptor. I empirically observed it was called a few hundred times a second on my laptop, which I figured would be enough "raw energy" to do the useful work of deriving the answer from the input.
 
 Since multiple cores can run the same eBPF program, concurrency is very much something to think about. Additionally, there could be multiple inputs which could be successfully worked on in parallel (even if each input's DP calculation must be approached serially). What I wanted to happen is for each execution to scan eligible inputs until it found one that was "unlocked"; subsequently, it would get the lock, do one round of DP and then give up the lock. To implement the locking mechanism, I used compare-and-swap (CAS) on a "locked" variable per "input workspace". Eligible inputs were found in a range between two logical pointers. The "lock" for an input is interpreted as the right to do DP on on that input space as well as, in the case that there is no more DP to do for that input and that the input is currently the leftmost eligible input, to move the left pointer rightward, thus ensuring that particular input workspace will never be considered again.
 
